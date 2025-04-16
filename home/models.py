@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
-# from django.contrib.auth import User
+from django.contrib.auth.models import User  # Import the default User model
 
 
 class OrderStatus(models.TextChoices):
@@ -24,21 +24,19 @@ class PaymentMethod(models.TextChoices):
     PayPal = 'PayPal'
 
 
-class UserModel(models.Model):
+class Profile(models.Model):
     """
-    User model to store user information.
+    Profile model to store additional user information.
     """
-    username = models.CharField(max_length=150, unique=True)
-    email = models.EmailField(unique=True)
-    password = models.CharField(max_length=128)
-    first_name = models.CharField(max_length=30, blank=True)
-    last_name = models.CharField(max_length=30, blank=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(auto_now_add=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE,
+                                related_name='profile')
+    bio = models.TextField(blank=True)
+    # profile_picture = models.ImageField(upload_to='profile_pictures/',
+    # blank=True, null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return self.username
+        return f"Profile of {self.user.username}"
 
 
 class Category(models.Model):
@@ -69,7 +67,7 @@ class Product(models.Model):
     slug = models.SlugField(max_length=255, unique=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE,
                                  related_name='products')
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2,
                                          null=True, blank=True)
@@ -78,6 +76,11 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -97,7 +100,7 @@ class ProductVariant(models.Model):
 
 
 class Cart(models.Model):
-    user = models.ForeignKey(UserModel, on_delete=models.CASCADE,
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='carts')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -109,16 +112,18 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE,
                              related_name='items')
-    product_varient = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product_variant = models.ForeignKey(ProductVariant,
+                                        on_delete=models.CASCADE,
+                                        related_name='cart_items')
     quantity = models.PositiveIntegerField(default=1)
     price_at_time = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.product_varient.name} - {self.quantity}"
+        return f"{self.product_variant.product.name} - {self.quantity}"
 
 
 class Order(models.Model):
-    user = models.ForeignKey(UserModel, on_delete=models.CASCADE,
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='orders')
     order_status = models.CharField(
         max_length=20,
@@ -140,12 +145,12 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE,
                               related_name='items')
-    product_varient = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product_variant = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    pric_at_time = models.DecimalField(max_digits=10, decimal_places=2)
+    price_at_time = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.product_varient.name} - {self.quantity}"
+        return f"{self.product_variant.name} - {self.quantity}"
 
 
 class Payment(models.Model):
@@ -157,10 +162,9 @@ class Payment(models.Model):
         choices=PaymentStatus.choices,
         default=PaymentStatus.Pending
     )
-    payment_method = models.CharField(max_length=255, 
+    payment_method = models.CharField(max_length=255,
                                       choices=PaymentMethod.choices,
-                                      default=PaymentMethod.Cash
-                                      )
+                                      default=PaymentMethod.COD)
     payment_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -168,7 +172,7 @@ class Payment(models.Model):
 
 
 class ShippingAddress(models.Model):
-    user = models.ForeignKey(UserModel, on_delete=models.CASCADE,
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='shipping_addresses')
     address_line1 = models.CharField(max_length=700)
     address_line2 = models.CharField(max_length=700, blank=True, null=True)
@@ -185,7 +189,7 @@ class ShippingAddress(models.Model):
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE,
                                 related_name='reviews')
-    user = models.ForeignKey(UserModel, on_delete=models.CASCADE,
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='reviews')
     rating = models.PositiveIntegerField()
     comment = models.TextField()
@@ -197,11 +201,10 @@ class Review(models.Model):
 
 
 class Wishlist(models.Model):
-    user = models.ForeignKey(UserModel, on_delete=models.CASCADE,
+    user = models.ForeignKey(User, on_delete=models.CASCADE,
                              related_name='wishlists')
     product = models.ForeignKey(Product, on_delete=models.CASCADE,
                                 related_name='wishlists')
-    # created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Wishlist for {self.user.username} - {self.product.name}"
