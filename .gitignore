@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Byte-compiled files
+*.so
+
+# Environment
+.env
+*.env
+.env.*
+
+# Virtualenv
+venv/
+ENV/
+env/
+.venv/
+
+# Django
+*.log
+db.sqlite3
+media/
+staticfiles/
+*.pot
+*.pyc
+
+# Django migrations
+**/migrations/
+!**/migrations/__init__.py
+
+# VS Code
+.vscode/
+
+# MyPy, coverage, and test cache
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# IDEs
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+*.seed
+docker-compose.override.yml
+__docker_cache__/
+
+# Postgres data (optional)
+pgdata/
+
+# Pip
+pip-log.txt
+
+# Redis dump
+dump.rdb
+
+# Other caches
+.cache/
