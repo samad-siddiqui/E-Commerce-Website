@@ -3,7 +3,9 @@ from .views import (UserRegister,
                     ProfileViewSet,
                     CategoryViewSet,
                     ProductViewSet,
-                    ProductVarientViewSet
+                    ProductVarientViewSet,
+                    CartViewSet,
+                    OrderViewSet,
                     )
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (
@@ -17,7 +19,10 @@ router.register(r'api/profile', ProfileViewSet, basename='profile')
 router.register(r'api/category', CategoryViewSet, basename='category')
 router.register(r'api/products', ProductViewSet, basename='products')
 router.register(r'api/product-variants', ProductVarientViewSet,
-                basename='product-variant')
+                basename='product-variants')
+router.register(r'api/cart', CartViewSet, basename='cart')
+router.register(r'api/orders', OrderViewSet, basename='orders')
+
 
 urlpatterns = [
     path('api/users/register/',

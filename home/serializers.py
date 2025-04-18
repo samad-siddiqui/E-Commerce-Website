@@ -1,7 +1,16 @@
 from rest_framework import serializers
 from .models import Profile
 from django.contrib.auth.models import User
-from .models import Category, Product, ProductVariant
+from .models import (Category,
+                     Product,
+                     ProductVariant,
+                     Cart,
+                     CartItem,
+                     Order,
+                     OrderItem,
+                     Payment,
+                     ShippingAddress
+                     )
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -80,3 +89,53 @@ class ProductVarientSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'slug': {'read_only': True}
         }
+
+
+class CartSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cart
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+        read_only_fields = ['cart']
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+        read_only_fields = ['order']
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'
+
+
+class ShippingAddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShippingAddress
+        fields = '__all__'
