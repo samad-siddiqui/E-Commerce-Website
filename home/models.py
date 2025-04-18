@@ -104,6 +104,8 @@ class Cart(models.Model):
                              related_name='carts')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    coupon = models.ForeignKey("Coupon", null=True, blank=True,
+                               on_delete=models.SET_NULL)
 
     def __str__(self):
         return f"Cart for {self.user.username}"

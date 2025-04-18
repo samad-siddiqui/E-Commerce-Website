@@ -1,4 +1,6 @@
 from rest_framework import viewsets, filters
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,7 +16,11 @@ from .serializers import (ProfileSerializer,
                           OrderSerializer,
                           OrderItemSerializer,
                           PaymentSerializer,
-                          ShippingAddressSerializer
+                          ShippingAddressSerializer,
+                          ReviewSerializer,
+                          WishlistSerializer,
+                          CouponSerializer,
+                          ApplyCouponSerializer
                           )
 from rest_framework import status
 from rest_framework.views import APIView
@@ -27,7 +33,10 @@ from .models import (Profile,
                      OrderItem,
                      Cart,
                      Payment,
-                     ShippingAddress
+                     ShippingAddress,
+                     Review,
+                     Wishlist,
+                     Coupon
                      )
 
 
@@ -155,6 +164,36 @@ class ProductViewSet(viewsets.ModelViewSet):
             {"detail": "You do not have permission to delete this product."},
             status=status.HTTP_403_FORBIDDEN
         )
+
+    @action(detail=True, methods=['post'], url_path='creviews')
+    def reviews(self, request, pk=None):
+        product = get_object_or_404(Product, pk=pk)
+        user = request.user
+
+        if Review.objects.filter(product=product, user=user).exists():
+            return Response(
+                {"detail": "You have already reviewed this product."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = ReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(product=product, user=user)
+
+        return Response(
+            {
+                "message": "Review added successfully.",
+                "review": serializer.data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=['get'], url_path='reviews')
+    def list_reviews(self, request, pk=None):
+        product = get_object_or_404(Product, pk=pk)
+        reviews = product.reviews.all()
+        serializer = ReviewSerializer(reviews, many=True)
+        return Response(serializer.data)
 
 
 class ProductVarientViewSet(viewsets.ModelViewSet):
@@ -417,3 +456,196 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class ShippingAddressViewSet(viewsets.ModelViewSet):
     queryset = ShippingAddress.objects.all()
     serializer_class = ShippingAddressSerializer
+
+    def create(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=user)
+            return Response(
+                {
+                    "message": "Shipping address created successfully",
+                    "shipping_address": serializer.data
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {"detail":
+                "You do not have permission to create a shipping address."
+             },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        if user.is_authenticated:
+            queryset = self.get_queryset().filter(user=user)
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return Response(
+            {"detail": "You do not have permission to view shipping addresses."
+             },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    def update(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            shipping_address = self.get_object()
+            if shipping_address.user != user:
+                return Response(
+                    {
+                     "detail":
+                     "You do not have permission to edit this shipping address"
+                     },
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            serializer = self.get_serializer(
+                shipping_address,
+                data=request.data,
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        return Response(
+            {
+             "detail":
+             "You do not have permission to edit this shipping address."
+             },
+            status=status.HTTP_403_FORBIDDEN
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.request.user
+        if user.is_authenticated:
+            shipping_address = self.get_object()
+            if shipping_address.user != user:
+                return Response(
+                    {
+                     "detail":
+                     "You do not have permission to delete this address."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            shipping_address.delete()
+            return Response(
+                {"detail": "Shipping address deleted successfully."},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        return Response(
+            {
+                "detail":
+                "You do not have permission to delete this shipping address."
+                },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+
+class WishlistViewSet(viewsets.ModelViewSet):
+    serializer_class = WishlistSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Wishlist.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='add')
+    def add_to_wishlist(self, request):
+        user = request.user
+        product = request.data.get('product')
+
+        if not product:
+            return Response(
+                {"detail": "Product ID is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if Wishlist.objects.filter(user=user, product=product).exists():
+            return Response(
+                {"detail": "Product already in wishlist."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        wishlist_item = Wishlist.objects.create(user=user, product_id=product)
+        serializer = self.get_serializer(wishlist_item)
+        return Response(
+            {
+                "message": "Product added to wishlist successfully.",
+                "wishlist_item": serializer.data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+class CouponViewSet(viewsets.ModelViewSet):
+    queryset = Coupon.objects.all()
+    serializer_class = CouponSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'apply_coupon':
+            return ApplyCouponSerializer
+        return CouponSerializer
+
+    def list(self, request, *args, **kwargs):
+        if request.user.is_superuser:
+            return super().list(request, *args, **kwargs)
+
+        return Response(
+            {"detail": "You do not have permission to view coupons."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply_coupon(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data.get('code')
+        try:
+            coupon = Coupon.objects.get(code=code, is_active=True)
+        except Coupon.DoesNotExist:
+            return Response(
+                {"detail": "Invalid or expired coupon code."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if coupon.expiration_date < timezone.now().date():
+            return Response(
+                {"detail": "Coupon has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        cart, _ = Cart.objects.get_or_create(user=request.user)
+        cart.coupon = coupon
+        cart.save()
+        return Response({
+            "message": f"Coupon '{code}' applied successfully.",
+            "discount_amount": str(coupon.discount_amount)
+        }, status=status.HTTP_200_OK)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.is_superuser:
+            return super().create(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to create coupons."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    def update(self, request, *args, **kwargs):
+        if request.user.is_superuser:
+            return super().update(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to update coupons."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        if request.user.is_superuser:
+            return super().destroy(request, *args, **kwargs)
+        return Response(
+            {"detail": "You do not have permission to delete coupons."},
+            status=status.HTTP_403_FORBIDDEN
+        )

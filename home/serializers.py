@@ -9,7 +9,10 @@ from .models import (Category,
                      Order,
                      OrderItem,
                      Payment,
-                     ShippingAddress
+                     ShippingAddress,
+                     Review,
+                     Wishlist,
+                     Coupon
                      )
 
 
@@ -139,3 +142,38 @@ class ShippingAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShippingAddress
         fields = '__all__'
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+        read_only_fields = ['product']
+
+
+class WishlistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wishlist
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+        read_only_fields = ['user']
+
+
+class CouponSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Coupon
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'read_only': True}
+        }
+        read_only_fields = ['user']
+
+
+class ApplyCouponSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=10)
