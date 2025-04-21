@@ -23,6 +23,7 @@ from .serializers import (ProfileSerializer,
                           ApplyCouponSerializer
                           )
 from rest_framework import status
+from .permissions import IsSuperUserOrReadOnly
 from rest_framework.views import APIView
 from django.db.models import Sum, F
 from .models import (Profile,
@@ -59,7 +60,7 @@ class UserRegister(APIView):
 
 class ProfileViewSet(viewsets.ModelViewSet):
     serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperUserOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -88,7 +89,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperUserOrReadOnly]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -99,7 +100,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by('-created_at')
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsSuperUserOrReadOnly]
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter,
                        filters.OrderingFilter]
@@ -117,53 +118,47 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(
-                {
-                    "message": "Product created successfully",
-                    "product": serializer.data
-                },
-                status=status.HTTP_201_CREATED
-            )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(
-            {"detail": "You do not have permission to create a product."},
-            status=status.HTTP_403_FORBIDDEN
-        )
+            {
+                "message": "Product created successfully",
+                "product": serializer.data
+            },
+            status=status.HTTP_201_CREATED
+            )
+        # return Response(
+        #     {"detail": "You do not have permission to create a product."},
+        #     status=status.HTTP_403_FORBIDDEN
+        # )
 
     def update(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser:
-            product = self.get_object()
-            serializer = self.get_serializer(
-                product,
-                data=request.data,
-                partial=True
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        return Response(
-            {"detail": "You do not have permission to edit this product."},
-            status=status.HTTP_403_FORBIDDEN
+        # user = self.request.user
+        # if user.is_superuser:
+        product = self.get_object()
+        serializer = self.get_serializer(
+            product,
+            data=request.data,
+            partial=True
         )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser:
-            product = self.get_object()
-            product.delete()
-            return Response(
-                {"detail": "Product deleted successfully."},
-                status=status.HTTP_204_NO_CONTENT
-            )
+        # user = self.request.user
+        # if user.is_superuser:
+        product = self.get_object()
+        product.delete()
         return Response(
-            {"detail": "You do not have permission to delete this product."},
-            status=status.HTTP_403_FORBIDDEN
+            {"detail": "Product deleted successfully."},
+            status=status.HTTP_204_NO_CONTENT
         )
+        # return Response(
+        #     {"detail": "You do not have permission to delete this product."},
+        #     status=status.HTTP_403_FORBIDDEN
+        # )
 
     @action(detail=True, methods=['post'], url_path='creviews')
     def reviews(self, request, pk=None):
@@ -199,7 +194,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class ProductVarientViewSet(viewsets.ModelViewSet):
     queryset = ProductVariant.objects.all()
     serializer_class = ProductVarientSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsSuperUserOrReadOnly]
 
     @action(detail=True, methods=['get'], url_path='variants')
     def list_varient(self, request, *args, **kwargs):
@@ -214,31 +209,26 @@ class ProductVarientViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='create-variant')
     def create_varient(self, request, *args, **kwargs):
-        user = self.request.user
-        if user.is_superuser:
-            print(user)
-            product = self.get_object()
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(product=product)
-            return Response(
-                {
-                    "message": "Product variant created successfully",
-                    "product_variant": serializer.data
-                },
-                status=status.HTTP_201_CREATED
-            )
+        # user = self.request.user
+        # if user.is_superuser:
+        # print(user)
+        product = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(product=product)
         return Response(
             {
-             "detail": "You do not have permission to create a product variant"
-            },
-            status=status.HTTP_403_FORBIDDEN
-        )
+                "message": "Product variant created successfully",
+                "product_variant": serializer.data
+                },
+            status=status.HTTP_201_CREATED
+            )
 
 
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
+    http_method_names = ['get', 'post']
 
     def get_queryset(self):
         user = self.request.user
@@ -316,7 +306,7 @@ class CartViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperUserOrReadOnly]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -387,6 +377,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    permission_classes = [IsSuperUserOrReadOnly]
 
     def create(self, request, *args, **kwargs):
         user = self.request.user
@@ -456,6 +447,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 class ShippingAddressViewSet(viewsets.ModelViewSet):
     queryset = ShippingAddress.objects.all()
     serializer_class = ShippingAddressSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def create(self, request, *args, **kwargs):
         user = self.request.user
