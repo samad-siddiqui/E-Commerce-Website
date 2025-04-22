@@ -12,11 +12,12 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-print("Loaded DB_NAME:", os.getenv("DB_NAME"))
-print("Loaded DB_USER:", os.getenv("DB_USER"))
-
-
 load_dotenv()
+
+print("Loaded POSTGRES_DB:", os.getenv("POSTGRES_DB"))
+print("Loaded POSTGRES_USER:", os.getenv("POSTGRES_USER"))
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -44,8 +45,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
-    'django_celery_beat',
     'home',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -98,17 +99,26 @@ WSGI_APPLICATION = 'core.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv('POSTGRES_DB', 'new_db'),
+#         'USER': os.getenv('POSTGRES_USER', 'sam'),
+#         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'samad123'),
+#         'HOST': os.getenv('POSTGRES_HOST', 'db'),
+#         'PORT': os.getenv('POSTGRES_PORT', '5432'),
+#     }
+# }
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'new_db'),
-        'USER': os.getenv('POSTGRES_USER', 'sam'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'samad123'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'),
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        'NAME': 'new_db',
+        'USER': 'postgres',
+        'PASSWORD': 'samad123',
+        'HOST': 'db',
+        'PORT': '5432',
     }
 }
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -149,10 +159,16 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
-# Celery settings
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+# CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+# # Celery settings
+# CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+# CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_TIMEZONE = 'UTC'
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
